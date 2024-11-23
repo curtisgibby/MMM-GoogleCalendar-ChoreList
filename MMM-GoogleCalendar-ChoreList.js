@@ -4,11 +4,11 @@
  * adaptation of MM default calendar module for Google Calendar events
  * MIT Licensed.
  */
-Module.register("MMM-GoogleCalendar", {
+Module.register("MMM-GoogleCalendar-ChoreList", {
   // Define module defaults
   defaults: {
     maximumEntries: 10, // Total Maximum Entries
-    maximumNumberOfDays: 365,
+    maximumNumberOfDays: 1,
     pastDaysCount: 0,
     limitDays: 0, // Limit the number of days shown, 0 = no limit
     displaySymbol: true,
@@ -40,11 +40,16 @@ Module.register("MMM-GoogleCalendar", {
     colored: false,
     coloredSymbolOnly: false,
     customEvents: [], // Array of {keyword: "", symbol: "", color: ""} where Keyword is a regexp and symbol/color are to be applied for matched
-    tableClass: "small",
     calendars: [
       {
         symbol: "calendar",
         url: "https://www.calendarlabs.com/templates/ical/US-Holidays.ics"
+      }
+    ],
+    people: [
+      {
+        name: 'Tim',
+        color: '#3F51B5'
       }
     ],
     titleReplace: {
@@ -65,7 +70,7 @@ Module.register("MMM-GoogleCalendar", {
 
   // Define required scripts.
   getStyles: function () {
-    return ["calendar.css", "font-awesome.css"];
+    return ["chore-list.css", "font-awesome.css"];
   },
 
   // Define required scripts.
@@ -173,350 +178,94 @@ Module.register("MMM-GoogleCalendar", {
     const oneDay = oneHour * 24;
 
     const events = this.createEventList();
+    const wrapper = document.createElement("div");
+    wrapper.className = "grid-container";
+    for (let person of this.config.people) {
+      // Find all events for this person
+      const personEvents = events.filter(event => {
+        return event.summary && event.summary.startsWith(person.name);
+      });
 
-    const wrapper = document.createElement("table");
-    wrapper.className = this.config.tableClass;
-
-    if (this.error) {
-      // web credentials will have a WEB url
-      if (this.error === "ERROR_AUTH_NEEDED" && this.errorUrl) {
-        wrapper.innerHTML = `Please <a href=${this.errorUrl}>click here</a> to authorize this module.`;
-      } else {
-        // default to generic error
-        wrapper.innerHTML = this.error;
-        wrapper.className = this.config.tableClass + " dimmed";
+      // Skip if no events found
+      if (personEvents.length === 0) {
+        continue;
       }
-      return wrapper;
-    }
+      let personWrapper = document.createElement("div");
+      personWrapper.style.cssText = "border-color: " + person.color;
+      personWrapper.innerHTML = "<h2 class='title' style='color:" + person.color + "'>" + person.name + "</h2>";
+      personWrapper.className = "person";
+      let eventList = document.createElement("ul");
+      eventList.className = "events";
+      for (let event of personEvents) {
+        let eventItem = document.createElement("li");
+        eventItem.innerHTML = event.summary.substring(person.name.length + 3); // Remove "Name - " prefix
 
-    if (events.length === 0) {
-      wrapper.innerHTML = this.loaded
-        ? this.translate("EMPTY")
-        : this.translate("LOADING");
-      wrapper.className = this.config.tableClass + " dimmed";
-      return wrapper;
-    }
-
-    let currentFadeStep = 0;
-    let startFade;
-    let fadeSteps;
-
-    if (this.config.fade && this.config.fadePoint < 1) {
-      if (this.config.fadePoint < 0) {
-        this.config.fadePoint = 0;
-      }
-      startFade = events.length * this.config.fadePoint;
-      fadeSteps = events.length - startFade;
-    }
-
-    let lastSeenDate = "";
-
-    events.forEach((event, index) => {
-      const dateAsString = moment(event.startDate).format(
-        this.config.dateFormat
-      );
-      if (this.config.timeFormat === "dateheaders") {
-        if (lastSeenDate !== dateAsString) {
-          const dateRow = document.createElement("tr");
-          dateRow.className = "normal";
-
-          const dateCell = document.createElement("td");
-          dateCell.colSpan = "3";
-          dateCell.innerHTML = dateAsString;
-          dateCell.style.paddingTop = "10px";
-          dateRow.appendChild(dateCell);
-          wrapper.appendChild(dateRow);
-
-          if (this.config.fade && index >= startFade) {
-            //fading
-            currentFadeStep = index - startFade;
-            dateRow.style.opacity = 1 - (1 / fadeSteps) * currentFadeStep;
-          }
-
-          lastSeenDate = dateAsString;
-        }
-      }
-
-      const eventWrapper = document.createElement("tr");
-
-      if (this.config.colored && !this.config.coloredSymbolOnly) {
-        eventWrapper.style.cssText =
-          "color:" + this.colorForCalendar(event.calendarID);
-      }
-
-      eventWrapper.className = "normal event";
-
-      const symbolWrapper = document.createElement("td");
-
-      if (this.config.displaySymbol) {
-        if (this.config.colored && this.config.coloredSymbolOnly) {
-          symbolWrapper.style.cssText =
-            "color:" + this.colorForCalendar(event.calendarID);
-        }
-
-        const symbolClass = this.symbolClassForCalendar(event.calendarID);
-        symbolWrapper.className = "symbol align-right " + symbolClass;
-
-        const symbols = this.symbolsForEvent(event);
-        // If symbols are displayed and custom symbol is set, replace event symbol
-        if (this.config.displaySymbol && this.config.customEvents.length > 0) {
+        // Color events if custom color is specified
+        if (this.config.customEvents.length > 0) {
           for (let ev in this.config.customEvents) {
             if (
-              typeof this.config.customEvents[ev].symbol !== "undefined" &&
-              this.config.customEvents[ev].symbol !== ""
+              typeof this.config.customEvents[ev].color !== "undefined" &&
+              this.config.customEvents[ev].color !== ""
             ) {
-              let needle = new RegExp(
-                this.config.customEvents[ev].keyword,
-                "gi"
-              );
+              let needle = new RegExp(this.config.customEvents[ev].keyword, "gi");
               if (needle.test(event.title)) {
-                symbols[0] = this.config.customEvents[ev].symbol;
+                // Respect parameter ColoredSymbolOnly also for custom events
+                if (!this.config.coloredSymbolOnly) {
+                  eventItem.style.cssText =
+                    "color:" + this.config.customEvents[ev].color;
+                }
                 break;
               }
             }
           }
         }
-        symbols.forEach((s, index) => {
-          const symbol = document.createElement("span");
-          symbol.className = "fa fa-fw fa-" + s;
-          if (index > 0) {
-            symbol.style.paddingLeft = "5px";
+
+
+        if (this.config.displaySymbol) {
+          const symbolWrapper = document.createElement("div");
+
+          if (this.config.colored && this.config.coloredSymbolOnly) {
+            symbolWrapper.style.cssText =
+              "color:" + this.colorForCalendar(event.calendarID);
           }
-          symbolWrapper.appendChild(symbol);
-        });
-        eventWrapper.appendChild(symbolWrapper);
-      } else if (this.config.timeFormat === "dateheaders") {
-        const blankCell = document.createElement("td");
-        blankCell.innerHTML = "&nbsp;&nbsp;&nbsp;";
-        eventWrapper.appendChild(blankCell);
-      }
-
-      const titleWrapper = document.createElement("td");
-      let repeatingCountTitle = "";
-
-      if (
-        this.config.displayRepeatingCountTitle &&
-        event.firstYear !== undefined
-      ) {
-        repeatingCountTitle = this.countTitleForCalendar(event.calendarID);
-
-        if (repeatingCountTitle !== "") {
-          const thisYear = new Date(parseInt(event.startDate)).getFullYear(),
-            yearDiff = thisYear - event.firstYear;
-
-          repeatingCountTitle = ", " + yearDiff + ". " + repeatingCountTitle;
-        }
-      }
-
-      // Color events if custom color is specified
-      if (this.config.customEvents.length > 0) {
-        for (let ev in this.config.customEvents) {
-          if (
-            typeof this.config.customEvents[ev].color !== "undefined" &&
-            this.config.customEvents[ev].color !== ""
-          ) {
-            let needle = new RegExp(this.config.customEvents[ev].keyword, "gi");
-            if (needle.test(event.title)) {
-              // Respect parameter ColoredSymbolOnly also for custom events
-              if (!this.config.coloredSymbolOnly) {
-                eventWrapper.style.cssText =
-                  "color:" + this.config.customEvents[ev].color;
-                titleWrapper.style.cssText =
-                  "color:" + this.config.customEvents[ev].color;
-              }
-              if (this.config.displaySymbol) {
-                symbolWrapper.style.cssText =
-                  "color:" + this.config.customEvents[ev].color;
-              }
-              break;
-            }
-          }
-        }
-      }
-
-      titleWrapper.innerHTML =
-        this.titleTransform(
-          event.title,
-          this.config.titleReplace,
-          this.config.wrapEvents,
-          this.config.maxTitleLength,
-          this.config.maxTitleLines
-        ) + repeatingCountTitle;
-
-      const titleClass = this.titleClassForCalendar(event.calendarID);
-
-      if (!this.config.colored) {
-        titleWrapper.className = "title bright " + titleClass;
-      } else {
-        titleWrapper.className = "title " + titleClass;
-      }
-
-      if (this.config.timeFormat === "dateheaders") {
-        if (event.fullDayEvent) {
-          titleWrapper.colSpan = "2";
-          titleWrapper.classList.add("align-left");
-        } else {
-          const timeWrapper = document.createElement("td");
-          timeWrapper.className =
-            "time light align-left " +
-            this.timeClassForCalendar(event.calendarID);
-          timeWrapper.style.paddingLeft = "2px";
-          timeWrapper.innerHTML = moment(event.startDate).format("LT");
-
-          // Add endDate to dataheaders if showEnd is enabled
-          if (this.config.showEnd) {
-            timeWrapper.innerHTML += ` - ${this.capFirst(moment(event.endDate, "x").format("LT"))}`;
-          }
-
-          eventWrapper.appendChild(timeWrapper);
-          titleWrapper.classList.add("align-right");
-        }
-
-        eventWrapper.appendChild(titleWrapper);
-      } else {
-        const timeWrapper = document.createElement("td");
-
-        eventWrapper.appendChild(titleWrapper);
-        const now = new Date();
-
-        if (this.config.timeFormat === "absolute") {
-          // Use dateFormat
-          timeWrapper.innerHTML = this.capFirst(
-            moment(event.startDate).format(this.config.dateFormat)
-          );
-          // Add end time if showEnd
-          if (this.config.showEnd) {
-            timeWrapper.innerHTML += "-";
-            timeWrapper.innerHTML += this.capFirst(
-              moment(event.endDate).format(this.config.dateEndFormat)
-            );
-          }
-          // For full day events we use the fullDayEventDateFormat
-          if (event.fullDayEvent) {
-            //subtract one second so that fullDayEvents end at 23:59:59, and not at 0:00:00 one the next day
-            event.endDate -= oneSecond;
-            timeWrapper.innerHTML = this.capFirst(
-              moment(event.startDate).format(this.config.fullDayEventDateFormat)
-            );
-          }
-          if (this.config.getRelative > 0 && event.startDate < now) {
-            // Ongoing and getRelative is set
-            timeWrapper.innerHTML = this.capFirst(
-              this.translate("RUNNING", {
-                fallback: this.translate("RUNNING") + " {timeUntilEnd}",
-                timeUntilEnd: moment(event.endDate).fromNow(true)
-              })
-            );
-          } else if (
-            this.config.urgency > 0 &&
-            event.startDate - now < this.config.urgency * oneDay
-          ) {
-            // Within urgency days
-            timeWrapper.innerHTML = this.capFirst(
-              moment(event.startDate).fromNow()
-            );
-          }
-          if (event.fullDayEvent && this.config.nextDaysRelative) {
-            // Full days events within the next two days
-            if (event.today) {
-              timeWrapper.innerHTML = this.capFirst(this.translate("TODAY"));
-            } else if (
-              event.startDate - now < oneDay &&
-              event.startDate - now > 0
-            ) {
-              timeWrapper.innerHTML = this.capFirst(this.translate("TOMORROW"));
-            } else if (
-              event.startDate - now < 2 * oneDay &&
-              event.startDate - now > 0
-            ) {
-              if (this.translate("DAYAFTERTOMORROW") !== "DAYAFTERTOMORROW") {
-                timeWrapper.innerHTML = this.capFirst(
-                  this.translate("DAYAFTERTOMORROW")
+  
+          const symbolClass = this.symbolClassForCalendar(event.calendarID);
+          symbolWrapper.className = "symbol align-left " + symbolClass;
+  
+          const symbols = this.symbolsForEvent(event);
+          // If symbols are displayed and custom symbol is set, replace event symbol
+          if (this.config.displaySymbol && this.config.customEvents.length > 0) {
+            for (let ev in this.config.customEvents) {
+              if (
+                typeof this.config.customEvents[ev].symbol !== "undefined" &&
+                this.config.customEvents[ev].symbol !== ""
+              ) {
+                let needle = new RegExp(
+                  this.config.customEvents[ev].keyword,
+                  "gi"
                 );
+                if (needle.test(event.title)) {
+                  symbols[0] = this.config.customEvents[ev].symbol;
+                  break;
+                }
               }
             }
           }
-        } else {
-          // Show relative times
-          if (event.startDate >= now) {
-            // Use relative  time
-            if (!this.config.hideTime) {
-              timeWrapper.innerHTML = this.capFirst(
-                moment(event.startDate).calendar(null, {
-                  sameElse: this.config.dateFormat
-                })
-              );
-            } else {
-              timeWrapper.innerHTML = this.capFirst(
-                moment(event.startDate).calendar(null, {
-                  sameDay: "[" + this.translate("TODAY") + "]",
-                  nextDay: "[" + this.translate("TOMORROW") + "]",
-                  nextWeek: "dddd",
-                  sameElse: this.config.dateFormat
-                })
-              );
+          symbols.forEach((s, index) => {
+            const symbol = document.createElement("span");
+            symbol.className = "fa fa-fw fa-" + s;
+            if (index > 0) {
+              symbol.style.paddingLeft = "5px";
             }
-            if (event.startDate - now < this.config.getRelative * oneHour) {
-              // If event is within getRelative  hours, display 'in xxx' time format or moment.fromNow()
-              timeWrapper.innerHTML = this.capFirst(
-                moment(event.startDate).fromNow()
-              );
-            }
-          } else {
-            // Ongoing event
-            timeWrapper.innerHTML = this.capFirst(
-              this.translate("RUNNING", {
-                fallback: this.translate("RUNNING") + " {timeUntilEnd}",
-                timeUntilEnd: moment(event.endDate).fromNow(true)
-              })
-            );
-          }
+            symbolWrapper.appendChild(symbol);
+          });
+          eventItem.prepend(symbolWrapper);
         }
-        timeWrapper.className =
-          "time light " + this.timeClassForCalendar(event.calendarID);
-        eventWrapper.appendChild(timeWrapper);
+        eventList.appendChild(eventItem);
       }
-
-      wrapper.appendChild(eventWrapper);
-
-      // Create fade effect.
-      if (index >= startFade) {
-        currentFadeStep = index - startFade;
-        eventWrapper.style.opacity = 1 - (1 / fadeSteps) * currentFadeStep;
-      }
-
-      if (this.config.showLocation) {
-        if (event.location) {
-          const locationRow = document.createElement("tr");
-          locationRow.className = "normal xsmall light";
-
-          if (this.config.displaySymbol) {
-            const symbolCell = document.createElement("td");
-            locationRow.appendChild(symbolCell);
-          }
-
-          const descCell = document.createElement("td");
-          descCell.className = "location";
-          descCell.colSpan = "2";
-          descCell.innerHTML = this.titleTransform(
-            event.location,
-            this.config.locationTitleReplace,
-            this.config.wrapLocationEvents,
-            this.config.maxLocationTitleLength,
-            this.config.maxEventTitleLines
-          );
-          locationRow.appendChild(descCell);
-
-          wrapper.appendChild(locationRow);
-
-          if (index >= startFade) {
-            currentFadeStep = index - startFade;
-            locationRow.style.opacity = 1 - (1 / fadeSteps) * currentFadeStep;
-          }
-        }
-      }
-    });
-
+      personWrapper.appendChild(eventList);
+      wrapper.appendChild(personWrapper);
+    }
     return wrapper;
   },
 
@@ -647,7 +396,7 @@ Module.register("MMM-GoogleCalendar", {
     const now = new Date();
     const today = moment().startOf("day");
     const future = moment()
-      .startOf("day")
+      .endOf("day")
       .add(this.config.maximumNumberOfDays, "days")
       .toDate();
     let events = [];
@@ -806,6 +555,50 @@ Module.register("MMM-GoogleCalendar", {
       timeClass: calendarConfig.timeClass,
 	  broadcastPastEvents: calendarConfig.broadcastPastEvents || this.config.broadcastPastEvents,
     });
+  },
+
+  /**
+   * Retrieves the symbols for a specific event.
+   *
+   * @param {object} event Event to look for.
+   * @returns {string[]} The symbols
+   */
+  symbolsForEvent: function (event) {
+    let symbols = this.getCalendarPropertyAsArray(
+      event.calendarID,
+      "symbol",
+      this.config.defaultSymbol
+    );
+
+    if (
+      event.recurringEvent === true &&
+      this.hasCalendarProperty(event.calendarID, "recurringSymbol")
+    ) {
+      symbols = this.mergeUnique(
+        this.getCalendarPropertyAsArray(
+          event.calendarID,
+          "recurringSymbol",
+          this.config.defaultSymbol
+        ),
+        symbols
+      );
+    }
+
+    if (
+      event.fullDayEvent === true &&
+      this.hasCalendarProperty(event.calendarID, "fullDaySymbol")
+    ) {
+      symbols = this.mergeUnique(
+        this.getCalendarPropertyAsArray(
+          event.calendarID,
+          "fullDaySymbol",
+          this.config.defaultSymbol
+        ),
+        symbols
+      );
+    }
+
+    return symbols;
   },
 
   /**
@@ -1067,6 +860,7 @@ Module.register("MMM-GoogleCalendar", {
   broadcastEvents: function () {
     const now = new Date();
     const eventList = [];
+
     for (const calendarID in this.calendarData) {
       for (const ev of this.calendarData[calendarID]) {
         const event = Object.assign({}, ev);
@@ -1083,9 +877,9 @@ Module.register("MMM-GoogleCalendar", {
         event.startDate = (startDate) ? moment(startDate).valueOf() : null;
         event.endDate = (endDate) ? moment(endDate).valueOf() : null;
 
-		if (this.config.broadcastEvents && !this.config.broadcastPastEvents && event.endDate < now) {
-			continue
-		}
+        if (this.config.broadcastEvents && !this.config.broadcastPastEvents && event.endDate < now) {
+          continue
+        }
 
         eventList.push(event);
       }

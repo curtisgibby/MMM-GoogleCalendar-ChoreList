@@ -1,4 +1,4 @@
-# Module: MMM-GoogleCalendar
+# Module: MMM-GoogleCalendar-ChoreList
 
 This module is a customization from MagicMirror's default calendar module to display your Google calendars (including the Google Family calendar) without needing to make calendars public or using iCals. Inspired by the [GoogleTask module](https://github.com/jgauth/MMM-GoogleTasks).
 

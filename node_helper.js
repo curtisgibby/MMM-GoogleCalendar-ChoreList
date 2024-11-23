@@ -3,6 +3,7 @@ const { google } = require("googleapis");
 const { encodeQueryData, formatError } = require("./helpers");
 const fs = require("fs");
 const Log = require("logger");
+const moment = require("moment");
 
 const TOKEN_PATH = "/token.json";
 
@@ -41,6 +42,7 @@ module.exports = NodeHelper.create({
         payload.fetchInterval,
         payload.maximumEntries,
         payload.pastDaysCount,
+        payload.maximumNumberOfDays,
         payload.id
       );
     }
@@ -211,6 +213,7 @@ module.exports = NodeHelper.create({
     fetchInterval,
     maximumEntries,
     pastDaysCount,
+    maximumNumberOfDays,
     identifier
   ) {
     this.calendarService.events.list(
@@ -219,6 +222,10 @@ module.exports = NodeHelper.create({
         timeMin: new Date(
           new Date().setDate(new Date().getDate() - pastDaysCount)
         ).toISOString(), // Lower bound (exclusive) for an event's end time to filter by
+        timeMax: moment() // Upper bound (inclusive) for an event's start time to filter by
+        .endOf("day")
+          .add(maximumNumberOfDays, "days")
+          .toDate(),
         maxResults: maximumEntries, // Maximum number of events returned
         singleEvents: true,
         orderBy: "startTime"
@@ -254,6 +261,7 @@ module.exports = NodeHelper.create({
           fetchInterval,
           maximumEntries,
           pastDaysCount,
+          maximumNumberOfDays,
           identifier
         );
       }
@@ -265,6 +273,7 @@ module.exports = NodeHelper.create({
     fetchInterval,
     maximumEntries,
     pastDaysCount,
+    maximumNumberOfDays,
     identifier
   ) {
     var _this = this;
@@ -275,6 +284,7 @@ module.exports = NodeHelper.create({
           fetchInterval,
           maximumEntries,
           pastDaysCount,
+          maximumNumberOfDays,
           identifier
         );
       }, fetchInterval);
