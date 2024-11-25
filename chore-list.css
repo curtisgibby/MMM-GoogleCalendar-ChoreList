@@ -27,6 +27,11 @@
 	list-style: none;
 }
 
+.person ul li.complete {
+	text-decoration: line-through;
+	color: var(--color-text-dimmed);
+}
+
 .person .symbol span {
 	padding-top: 5px;
 }
