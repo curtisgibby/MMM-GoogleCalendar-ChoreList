@@ -169,6 +169,18 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
     this.updateDom(this.config.animationSpeed);
   },
 
+  getPersonTitle: function (person) {
+    const title = document.createElement("h2");
+    if (this.config.displaySymbol && person.symbol) {
+      const symbol = document.createElement("span");
+      symbol.className = "fa fa-fw fa-" + person.symbol;
+      title.appendChild(symbol);
+    }
+    title.innerHTML += person.name;
+    title.className = 'title';
+    return title;
+  },
+
   // Override dom generator.
   getDom: function () {
     // Define second, minute, hour, and day constants
@@ -192,8 +204,8 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
         continue;
       }
       let personWrapper = document.createElement("div");
-      personWrapper.style.cssText = "border-color: " + person.color;
-      personWrapper.innerHTML = "<h2 class='title' style='color:" + person.color + "'>" + person.name + "</h2>";
+      personWrapper.style.cssText = "border-color: " + person.color + " ; color: " + person.color;
+      personWrapper.appendChild(this.getPersonTitle(person));
       personWrapper.className = "person";
       let eventList = document.createElement("ul");
       eventList.className = "events";
