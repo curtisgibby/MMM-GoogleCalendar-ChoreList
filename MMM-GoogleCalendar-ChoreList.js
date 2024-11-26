@@ -183,12 +183,6 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
 
   // Override dom generator.
   getDom: function () {
-    // Define second, minute, hour, and day constants
-    const oneSecond = 1000; // 1,000 milliseconds
-    const oneMinute = oneSecond * 60;
-    const oneHour = oneMinute * 60;
-    const oneDay = oneHour * 24;
-
     const events = this.createEventList();
     const wrapper = document.createElement("div");
     wrapper.className = "grid-container";
