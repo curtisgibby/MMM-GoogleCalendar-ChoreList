@@ -12,6 +12,7 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
     pastDaysCount: 0,
     limitDays: 0, // Limit the number of days shown, 0 = no limit
     displaySymbol: true,
+    doneString: ' [DONE]',
     defaultSymbol: "calendar", // Fontawesome Symbol see https://fontawesome.com/cheatsheet?from=io
     showLocation: false,
     displayRepeatingCountTitle: false,
@@ -186,7 +187,6 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
     const events = this.createEventList();
     const wrapper = document.createElement("div");
     wrapper.className = "grid-container";
-    const doneString = ' [DONE]';
     for (let person of this.config.people) {
       // Find all events for this person
       const personEvents = events.filter(event => {
@@ -207,9 +207,9 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
         let eventItem = document.createElement("li");
         eventItem.innerHTML = event.summary.substring(person.name.length + 3); // Remove "Name - " prefix
 
-        if (event.summary.endsWith(doneString)) {
+        if (event.summary.endsWith(this.config.doneString)) {
           eventItem.className = 'complete';
-          eventItem.innerHTML = eventItem.innerHTML.slice(0, -doneString.length);
+          eventItem.innerHTML = eventItem.innerHTML.slice(0, -this.config.doneString.length);
         }
         // Color events if custom color is specified
         if (this.config.customEvents.length > 0) {
