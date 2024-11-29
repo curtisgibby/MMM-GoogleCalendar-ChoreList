@@ -224,6 +224,8 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
 
         const _this = this;
         eventItem.addEventListener("click", (e) => {
+          symbol = eventItem.querySelectorAll("div.symbol span")[0];
+          symbol.className += " fa-spin";
           _this.toggleEventDone(event)
         });
 
