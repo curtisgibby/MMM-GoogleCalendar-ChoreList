@@ -46,6 +46,9 @@ module.exports = NodeHelper.create({
         payload.id
       );
     }
+    if (notification === "UPDATE_EVENT_STATUS") {
+      this.updateEvent(payload.event);
+    }
   },
 
   authenticateWithQueryParams: function (params) {
@@ -163,7 +166,7 @@ module.exports = NodeHelper.create({
           _this.sendSocketNotification("AUTH_NEEDED", {
             url: `https://accounts.google.com/o/oauth2/v2/auth?${encodeQueryData(
               {
-                scope: "https://www.googleapis.com/auth/calendar.readonly",
+                scope: ["https://www.googleapis.com/auth/calendar.readonly", "https://www.googleapis.com/auth/calendar.events"].join(" "),
                 access_type: "offline",
                 include_granted_scopes: true,
                 response_type: "code",
@@ -200,6 +203,43 @@ module.exports = NodeHelper.create({
     _this.sendSocketNotification("SERVICE_READY", {});
   },
 
+   /**
+   * Updates an event.
+   * @param {google.calendar.event} event Event.
+   */
+    updateEvent: function (
+      event
+    ) {
+      this.calendarService.events.patch({
+        'calendarId': event.calendarID,
+        'eventId': event.id,
+        'resource': event
+      },
+      (err, res) => {
+        if (err) {
+          Log.error(
+            `${this.name}: Error updating event: ${event.summary}`,
+            formatError(err)
+          );
+          let error_type = NodeHelper.checkFetchError(err);
+          if (error_type === "MODULE_ERROR_UNSPECIFIED") {
+            error_type = this.checkForHTTPError(err) || error_type;
+          }
+  
+          // send error to module
+          this.sendSocketNotification("UPDATE_EVENT_ERROR", {
+            id: event.id,
+            error_type
+          });
+        } else {
+          Log.info(
+            `${this.name}: Updated event: ${event.summary}`
+          );
+          this.sendSocketNotification("SERVICE_READY", {});
+        }
+    });
+  },
+
   /**
    * Fetch calendars
    *
@@ -233,7 +273,7 @@ module.exports = NodeHelper.create({
       (err, res) => {
         if (err) {
           Log.error(
-            "MMM-GoogleCalendar Error. Could not fetch calendar: ",
+            `${this.name} Error. Could not fetch calendar: `,
             calendarID,
             formatError(err)
           );

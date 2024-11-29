@@ -170,6 +170,16 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
     this.updateDom(this.config.animationSpeed);
   },
 
+  toggleEventDone: function (event) {
+    const eventDone = event.summary.endsWith(this.config.doneString);
+    if (eventDone) {
+      event.summary = event.summary.slice(0, -this.config.doneString.length);
+    } else {
+      event.summary += this.config.doneString;
+    }
+    this.sendSocketNotification("UPDATE_EVENT_STATUS", {event: event});
+  },
+
   getPersonTitle: function (person) {
     const title = document.createElement("h2");
     if (this.config.displaySymbol && person.symbol) {
@@ -211,6 +221,12 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
           eventItem.className = 'complete';
           eventItem.innerHTML = eventItem.innerHTML.slice(0, -this.config.doneString.length);
         }
+
+        const _this = this;
+        eventItem.addEventListener("click", (e) => {
+          _this.toggleEventDone(event)
+        });
+
         // Color events if custom color is specified
         if (this.config.customEvents.length > 0) {
           for (let ev in this.config.customEvents) {
@@ -319,10 +335,10 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
       }
 
       const calendarConfig = {
-		maximumEntries: calendar.maximumEntries,
-		maximumNumberOfDays: calendar.maximumNumberOfDays,
-		broadcastPastEvents: calendar.broadcastPastEvents,
-		excludedEvents: calendar.excludedEvents,
+        maximumEntries: calendar.maximumEntries,
+        maximumNumberOfDays: calendar.maximumNumberOfDays,
+        broadcastPastEvents: calendar.broadcastPastEvents,
+        excludedEvents: calendar.excludedEvents,
       };
 
       if (
