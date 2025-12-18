@@ -45,3 +45,12 @@
 .person .title span {
 	padding-right: 0.1em;
 }
+
+.person .allowance-display {
+	text-align: center;
+	font-size: var(--font-size-small);
+	color: #888;
+	padding-top: 8px;
+	margin-top: 5px;
+	border-top: 1px solid #444;
+}

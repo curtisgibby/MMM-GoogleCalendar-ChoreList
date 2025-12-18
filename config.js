@@ -210,22 +210,26 @@ let config = {
 					{
 						symbol: "cat",
 						name: "Melia",
-						color: "#D6837A"
+						color: "#D6837A",
+						allowance: 20.00
 					},
 					{
 						symbol: "ghost",
 						name: "Bean",
-						color: "#489160"
+						color: "#489160",
+						allowance: 20.00
 					},
 					{
 						symbol: "gamepad",
 						name: "Ben",
-						color: "#4B99D2"
+						color: "#4B99D2",
+						allowance: 20.00
 					},
 					{
 						symbol: "dragon",
 						name: "Joe",
-						color: "#F09300"
+						color: "#F09300",
+						allowance: 20.00
 					},
 				]
 

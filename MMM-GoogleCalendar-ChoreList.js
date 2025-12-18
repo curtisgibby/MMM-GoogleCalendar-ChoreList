@@ -195,6 +195,7 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
   // Override dom generator.
   getDom: function () {
     const events = this.createEventList();
+    const allMonthEvents = this.getAllMonthEvents(); // For allowance calculation
     const wrapper = document.createElement("div");
     wrapper.className = "grid-container";
     for (let person of this.config.people) {
@@ -293,6 +294,20 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
         eventList.appendChild(eventItem);
       }
       personWrapper.appendChild(eventList);
+
+      // Add allowance display if person has allowance configured
+      if (person.allowance) {
+        const allowanceData = this.getPersonAllowanceData(person, allMonthEvents);
+        if (allowanceData) {
+          const allowanceDiv = document.createElement("div");
+          allowanceDiv.className = "allowance-display";
+          const earnedFormatted = "$" + allowanceData.earned.toFixed(2);
+          const totalFormatted = "$" + allowanceData.allowance.toFixed(2);
+          allowanceDiv.textContent = "Earned: " + earnedFormatted + " / " + totalFormatted;
+          personWrapper.appendChild(allowanceDiv);
+        }
+      }
+
       wrapper.appendChild(personWrapper);
     }
     return wrapper;
@@ -330,6 +345,19 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
 	},
 
   fetchCalendars: function () {
+    // Calculate month boundaries for allowance tracking
+    const now = moment();
+    const startOfMonth = moment().startOf("month");
+    const endOfMonth = moment().endOf("month");
+
+    // Days from start of month to today (for pastDaysCount)
+    const daysFromMonthStart = now.diff(startOfMonth, "days");
+    // Days from today to end of month (for maximumNumberOfDays)
+    const daysToMonthEnd = endOfMonth.diff(now, "days");
+
+    // Check if any person has allowance configured
+    const hasAllowance = this.config.people && this.config.people.some(p => p.allowance);
+
     this.config.calendars.forEach((calendar) => {
       if (!calendar.calendarID) {
         Log.warn(this.name + ": Unable to fetch, no calendar ID found!");
@@ -337,8 +365,9 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
       }
 
       const calendarConfig = {
-        maximumEntries: calendar.maximumEntries,
-        maximumNumberOfDays: calendar.maximumNumberOfDays,
+        maximumEntries: hasAllowance ? 500 : calendar.maximumEntries, // Increase limit for full month
+        maximumNumberOfDays: hasAllowance ? daysToMonthEnd : calendar.maximumNumberOfDays,
+        pastDaysCount: hasAllowance ? daysFromMonthStart : calendar.pastDaysCount,
         broadcastPastEvents: calendar.broadcastPastEvents,
         excludedEvents: calendar.excludedEvents,
       };
@@ -505,7 +534,10 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
             }
           }
         } else {
-          events.push(event);
+          // Only include events within the display date range
+          if (event.startDate >= today && event.startDate <= future) {
+            events.push(event);
+          }
         }
       }
     }
@@ -919,5 +951,67 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
     });
 
     this.sendNotification("CALENDAR_EVENTS", eventList);
+  },
+
+  /**
+   * Gets all events for the current month (for allowance calculation).
+   *
+   * @returns {object[]} Array with all month's events.
+   */
+  getAllMonthEvents: function () {
+    const startOfMonth = moment().startOf("month").valueOf();
+    const endOfMonth = moment().endOf("month").valueOf();
+    let events = [];
+
+    for (const calendarID in this.calendarData) {
+      const calendar = this.calendarData[calendarID];
+      for (const e in calendar) {
+        const event = JSON.parse(JSON.stringify(calendar[e])); // clone object
+        event.calendarID = calendarID;
+        event.endDate = this.extractCalendarDate(event.end);
+        event.startDate = this.extractCalendarDate(event.start);
+
+        // Only include events within the current month
+        if (event.startDate >= startOfMonth && event.startDate <= endOfMonth) {
+          events.push(event);
+        }
+      }
+    }
+
+    return events;
+  },
+
+  /**
+   * Calculates allowance data for a person.
+   *
+   * @param {object} person The person config object (must have allowance property).
+   * @param {object[]} allMonthEvents All events for the current month.
+   * @returns {object} Allowance data { total, completed, earned, allowance, choreValue }.
+   */
+  getPersonAllowanceData: function (person, allMonthEvents) {
+    if (!person.allowance) {
+      return null;
+    }
+
+    // Filter events for this person
+    const personEvents = allMonthEvents.filter(event => {
+      return event.summary && event.summary.startsWith(person.name);
+    });
+
+    const total = personEvents.length;
+    const completed = personEvents.filter(event => {
+      return event.summary && event.summary.endsWith(this.config.doneString);
+    }).length;
+
+    const choreValue = total > 0 ? person.allowance / total : 0;
+    const earned = completed * choreValue;
+
+    return {
+      total: total,
+      completed: completed,
+      earned: earned,
+      allowance: person.allowance,
+      choreValue: choreValue
+    };
   }
 });
