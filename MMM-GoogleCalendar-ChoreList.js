@@ -170,6 +170,14 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
     this.updateDom(this.config.animationSpeed);
   },
 
+  /**
+   * Strips an optional rotation prefix like "(A) " from the event summary.
+   * Chores rotate weekly — e.g. "(A) Bean - Sweep" means Bean has the "A" rotation this week.
+   */
+  stripRotationPrefix: function (summary) {
+    return summary.replace(/^\([A-C]\) /, "");
+  },
+
   toggleEventDone: function (event) {
     const eventDone = event.summary.endsWith(this.config.doneString);
     if (eventDone) {
@@ -201,7 +209,7 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
     for (let person of this.config.people) {
       // Find all events for this person
       const personEvents = events.filter(event => {
-        return event.summary && event.summary.startsWith(person.name);
+        return event.summary && this.stripRotationPrefix(event.summary).startsWith(person.name);
       });
 
       // Skip if no events found
@@ -216,7 +224,8 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
       eventList.className = "events";
       for (let event of personEvents) {
         let eventItem = document.createElement("li");
-        eventItem.innerHTML = event.summary.substring(person.name.length + 3); // Remove "Name - " prefix
+        const strippedSummary = this.stripRotationPrefix(event.summary);
+        eventItem.innerHTML = strippedSummary.substring(person.name.length + 3); // Remove "Name - " prefix
 
         if (event.summary.endsWith(this.config.doneString)) {
           eventItem.className = 'complete';
@@ -995,7 +1004,7 @@ Module.register("MMM-GoogleCalendar-ChoreList", {
 
     // Filter events for this person
     const personEvents = allMonthEvents.filter(event => {
-      return event.summary && event.summary.startsWith(person.name);
+      return event.summary && this.stripRotationPrefix(event.summary).startsWith(person.name);
     });
 
     const total = personEvents.length;

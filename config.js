@@ -144,7 +144,7 @@ let config = {
 					{
 						symbol: "gamepad",
 						calendarID: "benjaminwmgibby@gmail.com",
-						name: "Ben",
+						name: "Cas",
 						color: "#4B99D2"
 					},
 					{
@@ -221,7 +221,7 @@ let config = {
 					},
 					{
 						symbol: "gamepad",
-						name: "Ben",
+						name: "Cas",
 						color: "#4B99D2",
 						allowance: 20.00
 					},
